@@ -1,21 +1,14 @@
-ESX = exports["es_extended"]:getSharedObject()
+local QBCore = exports['qb-core']:GetCoreObject()
 
+-- Event to remove money from the player
 RegisterServerEvent('kvl:removemoney')
 AddEventHandler('kvl:removemoney', function(price)
-    local src = source
-    local xPlayer = ESX.GetPlayerFromId(src)
+    local source = source
+    local playerId = source
+    local xPlayer = QBCore.Functions.GetPlayer(playerId)
 
-    if xPlayer ~= nil then
-        xPlayer.removeMoney(price)
+    if xPlayer then
+        QBCore.Functions.RemoveMoney(playerId, price)
     end
 end)
 
-ESX.RegisterServerCallback('kvl-rob:paracheckk', function(source, cb, price)
-    local xPlayer = ESX.GetPlayerFromId(source)
-
-
-    if xPlayer ~= nil then
-        cb(xPlayer.getAccount("money").money >= price)
-    end
-
-end)
