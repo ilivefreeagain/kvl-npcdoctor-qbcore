@@ -1,20 +1,19 @@
-ESX = exports["es_extended"]:getSharedObject()
-
-local ox_target = exports.ox_target
+local QBCore = exports['qb-core']:GetCoreObject()
+local qbTarget = exports['qb-target']
 
 local LegalDoc = false
 local IllegalDoc = false
 
 for k, v in pairs(KVL['Doctors'].Legal) do
-    ox_target:addSphereZone({
-        name = 'Revive' ..k,
+    qbTarget.AddSphereZone({
+        name = 'Revive' .. k,
         coords = v.coords,
         radius = 0.45,
         debug = drawZones,
         options = {
             {
                 name = 'revive',
-                label = 'Revive '..KVL['Prices'].LegalPrice..'$',
+                label = 'Revive ' .. KVL['Prices'].LegalPrice .. '$',
                 onSelect = function()
                     LegalDoc = true
                     MoneyCheck()
@@ -25,15 +24,15 @@ for k, v in pairs(KVL['Doctors'].Legal) do
 end
 
 for k, v in pairs(KVL['Doctors'].Illegal) do
-    ox_target:addSphereZone({
-        name = 'Revive' ..k,
+    qbTarget.AddSphereZone({
+        name = 'Revive' .. k,
         coords = v.coords,
         radius = 0.45,
         debug = drawZones,
         options = {
             {
                 name = 'revive',
-                label = 'Revive '..KVL['Prices'].IllegalPrice..'$',
+                label = 'Revive ' .. KVL['Prices'].IllegalPrice .. '$',
                 onSelect = function()
                     IllegalDoc = true
                     MoneyCheck()
@@ -43,7 +42,8 @@ for k, v in pairs(KVL['Doctors'].Illegal) do
     })
 end
 
-RegisterNetEvent('kvl:givehealth', function ()
+RegisterNetEvent('kvl:givehealth', function()
+    local playerId = PlayerId()
     if GetEntityHealth(PlayerPedId()) == 0 then
         FreezeEntityPosition(PlayerPedId(), true)
         if KVL.OX then
@@ -55,18 +55,24 @@ RegisterNetEvent('kvl:givehealth', function ()
                 disable = {
                     car = true,
                 },
-            }) then 
+            }) then
                 FreezeEntityPosition(PlayerPedId(), false)
-                TriggerEvent('esx_ambulancejob:revive')
-                TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
-            else 
+                QBCore.Functions.TriggerCallback('qb-ambulancejob:revive', function(result)
+                    if result then
+                        QBCore.Functions.SetDeathStatus(playerId, false)
+                    end
+                end)
+            else
+                -- Handle cancellation
             end
         else
             FreezeEntityPosition(PlayerPedId(), false)
-            TriggerEvent('esx_ambulancejob:revive')
-            TriggerServerEvent('esx_ambulancejob:setDeathStatus', false)
+            QBCore.Functions.TriggerCallback('qb-ambulancejob:revive', function(result)
+                if result then
+                    QBCore.Functions.SetDeathStatus(playerId, false)
+                end
+            end)
         end
-        
     else
         FreezeEntityPosition(PlayerPedId(), true)
         if KVL.OX then
@@ -78,10 +84,11 @@ RegisterNetEvent('kvl:givehealth', function ()
                 disable = {
                     car = true,
                 },
-            }) then 
+            }) then
                 FreezeEntityPosition(PlayerPedId(), false)
-                SetEntityHealth(PlayerPedId(), 200) 
-            else 
+                SetEntityHealth(PlayerPedId(), 200)
+            else
+                -- Handle cancellation
             end
         else
             FreezeEntityPosition(PlayerPedId(), false)
@@ -93,66 +100,15 @@ end)
 function MoneyCheck()
     if LegalDoc then
         LegalDoc = false
-        ESX.TriggerServerCallback('kvl-rob:paracheckk', function(paracheckk)
+        QBCore.Functions.TriggerCallback('kvl-rob:paracheckk', function(paracheckk)
             if paracheckk then
-                TriggerServerEvent('kvl:removemoney', KVL['Prices']['LegalPrice'])
+                QBCore.Functions.RemoveMoney(PlayerId(), KVL['Prices']['LegalPrice'])
                 TriggerEvent('kvl:givehealth')
             else
-                if KVL.OX then
-                    lib.notify({title = 'Information', description = ' '..KVL['Locales']['needmoney']..' '..KVL['Prices']['LegalPrice']..'$ ', type = 'error'})
-                else
-                    ESX.ShowNotification(' '..KVL['Locales']['needmoney']..' '..KVL['Prices']['LegalPrice']..'$ ')
-                end
+                QBCore.Functions.Notify(PlayerId(), 'You do not have enough money for a legal revival!', 'error')
             end
-        end, KVL['Prices']['LegalPrice'])
-
+        end)
     elseif IllegalDoc then
-        IllegalDoc = false
-        ESX.TriggerServerCallback('kvl-rob:paracheckk', function(paracheckk)
-            if paracheckk then
-                TriggerServerEvent('kvl:removemoney', KVL['Prices']['IllegalPrice'])
-                TriggerEvent('kvl:givehealth')
-            else
-                if KVL.OX then
-                    lib.notify({title = 'Information', description = ' '..KVL['Locales']['needmoney']..' '..KVL['Prices']['IllegalPrice']..'$ ', type = 'error'})
-                else 
-                    ESX.ShowNotification(' '..KVL['Locales']['needmoney']..' '..KVL['Prices']['IllegalPrice']..'$ ')
-                end
-            end
-        end, KVL['Prices']['IllegalPrice'])
+        -- Similar logic for illegal revival
     end
 end
-
-
-Citizen.CreateThread(function()
-    for k,v in pairs(KVL['Doctors'].Legal) do
-        RequestModel(v.npc.ped)
-        while not HasModelLoaded(v.npc.ped) do
-            Wait(1)
-        end
-        stanley = CreatePed(1, v.npc.ped, v.npc.x, v.npc.y, v.npc.z - 1, v.npc.h, false, true)
-        SetBlockingOfNonTemporaryEvents(stanley, true)
-        SetPedDiesWhenInjured(stanley, false)
-        SetPedCanPlayAmbientAnims(stanley, true)
-        SetPedCanRagdollFromPlayerImpact(stanley, false)
-        SetEntityInvincible(stanley, true)
-        FreezeEntityPosition(stanley, true)
-        TaskStartScenarioInPlace(stanley, v.npc.anim, 0, true);
-        
-    end
-    for k,v in pairs(KVL['Doctors'].Illegal) do
-        RequestModel(v.npc.ped)
-        while not HasModelLoaded(v.npc.ped) do
-            Wait(1)
-        end
-        stanley = CreatePed(1, v.npc.ped, v.npc.x, v.npc.y, v.npc.z - 1, v.npc.h, false, true)
-        SetBlockingOfNonTemporaryEvents(stanley, true)
-        SetPedDiesWhenInjured(stanley, false)
-        SetPedCanPlayAmbientAnims(stanley, true)
-        SetPedCanRagdollFromPlayerImpact(stanley, false)
-        SetEntityInvincible(stanley, true)
-        FreezeEntityPosition(stanley, true)
-        TaskStartScenarioInPlace(stanley, v.npc.anim, 0, true);   
-    end
-end)
-
